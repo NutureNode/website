@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NurtureNode - Community Management</title>
+    <link rel="stylesheet" type="text/css" href="css/nuturenode.css" />
+</head>
+
+<body class="light-mode">
+    <header>
+        <h1>NurtureNode</h1>
+        <button id="toggleMode"><img class='dark-icon' src="images/darkmode.png" /></button>
+    </header>
+    <main>
+        <h2>Welcome to NurtureNode</h2>
+        <p>Community management made simple. Sign up for early access today!</p>
+        <button class="cta-button">Join Early Access</button>
+        <div class="features">
+            <div class="feature">
+                <img src="images/manage-community.jpeg" alt="Feature 1">
+                <h3>Manage Your Community</h3>
+                <p>Simple and intuitive tools to help you manage your community efficiently.</p>
+            </div>
+            <div class="feature">
+                <img src="images/engagement.jpeg" alt="Feature 2">
+                <h3>Engage Effectively</h3>
+                <p>Keep your members engaged with modern communication tools.</p>
+            </div>
+            <div class="feature">
+                <img src="images/analytics.jpeg" alt="Feature 3">
+                <h3>Grow Seamlessly</h3>
+                <p>Insights and analytics to help you grow your community.</p>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 NurtureNode. All rights reserved.</p>
+    </footer>
+    <script>
+        const toggleModeButton = document.getElementById('toggleMode');
+        const body = document.body;
+
+        toggleModeButton.addEventListener('click', () => {
+            if (body.classList.contains('light-mode')) {
+                body.classList.remove('light-mode');
+                body.classList.add('dark-mode');
+            } else {
+                body.classList.remove('dark-mode');
+                body.classList.add('light-mode');
+            }
+        });
+    </script>
+</body>
+
+</html>

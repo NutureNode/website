@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link rel="stylesheet" type="text/css" href="css/nuturenode.css" />
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .google {
+            background-color: #db4437;
+            color: white;
+        }
+
+        .microsoft {
+            background-color: #0078d7;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="light-mode">
+    <header>
+        <h1>NurtureNode</h1>
+        <button id="toggleMode"><img class='dark-icon' src="images/darkmode.png" /></button>
+    </header>
+    <div class="login-container">
+        <h1>Login</h1>
+        <form id="loginForm">
+            <div>
+                <input type="email" id="email" placeholder="Email" required>
+            </div>
+            <div>
+                <input type="password" id="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="login-button">Login</button>
+        </form>
+        <hr>
+        <button class="login-button google" onclick="loginWithGoogle()">Login with Google</button>
+        <button class="login-button microsoft" onclick="loginWithMicrosoft()">Login with Microsoft</button>
+    </div>
+
+    <script>
+        async function loginWithGoogle() {
+            window.location.href = "/auth/google";
+        }
+
+        async function loginWithMicrosoft() {
+            window.location.href = "/auth/microsoft";
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Login successful!');
+                window.location.href = '/dashboard';
+            } else {
+                alert('Login failed: ' + result.message);
+            }
+        });
+    </script>
+</body>
+
+</html>
