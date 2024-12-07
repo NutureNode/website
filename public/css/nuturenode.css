@@ -8,6 +8,15 @@
     --text-dark: #fff;
 }
 
+a:visited {
+    color: white;
+    text-decoration-color: white;
+}
+
+a:active {
+    text-decoration: none;
+}
+
 body {
     margin: 0;
     font-family: var(--font-family);
@@ -44,6 +53,13 @@ header button {
     padding: 5px 15px;
     cursor: pointer;
     border-radius: 5px;
+}
+
+#login {
+    text-decoration: none;
+    color: white;
+    margin-left: auto;
+    margin-right: 0;
 }
 
 img.dark-icon {
@@ -113,4 +129,46 @@ body.dark-mode .feature {
     width: 80px;
     height: auto;
     margin-bottom: 10px;
+}
+
+.registration-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.registration-container h1 {
+    text-align: center;
+    color: #333;
+}
+
+.registration-container label {
+    display: block;
+    margin: 10px 0 5px;
+    color: #555;
+}
+
+.registration-container input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.registration-container button {
+    width: 100%;
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.registration-container button:hover {
+    background-color: #45a049;
 }

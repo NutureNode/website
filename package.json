@@ -1,9 +1,9 @@
 {
   "name": "nuturewebsite",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "server": "",
+    "server": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -12,9 +12,10 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.5",
     "passport": "^0.7.0",
     "passport-azure-ad": "^4.3.5",
     "passport-google-oauth20": "^2.0.0"

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration</title>
+    <link rel="stylesheet" href="css/nuturenode.css">
+    <script>
+        // Populate fields if redirected from Google OAuth
+        function populateGoogleFields(data) {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email');
+            if (email) {
+                document.getElementById('email').value = email;
+                document.getElementById('password').disabled = true;
+                document.getElementById('passwordVerification').disabled = true;
+            }
+        }
+
+        window.onload = () => {
+            populateGoogleFields();
+        };
+    </script>
+</head>
+
+<body>
+    <div class="registration-container">
+        <h1>Register</h1>
+        <form id="registrationForm" action="/api/register" method="POST">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" name="firstName" required>
+
+            <label for="surname">Surname:</label>
+            <input type="text" id="surname" name="surname" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="passwordVerification">Verify Password:</label>
+            <input type="password" id="passwordVerification" name="passwordVerification" required>
+
+            <label for="company">Company:</label>
+            <input type="text" id="company" name="company" required>
+
+            <button type="submit">Register</button>
+        </form>
+    </div>
+</body>
+
+</html>

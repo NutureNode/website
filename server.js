@@ -4,18 +4,29 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const AzureStrategy = require('passport-azure-ad').OIDCStrategy;
-require('dotenv').config();
-const app = express();
-const PORT = 3000;
+const mysql = require('mysql2');
+const path = require('path');
 
-// Mock user database
-const users = [];
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const OPTIONS = {
+    root: path.join(__dirname)
+};
+
+// MySQL connection
+const db = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+});
 
 // Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static('public'))
-app.use(passport.initialize());
 
 // Hash password (12 salt rounds for bcrypt)
 async function hashPassword(password) {
@@ -27,62 +38,149 @@ async function verifyPassword(password, hash) {
     return await bcrypt.compare(password, hash);
 }
 
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback',
-}, (accessToken, refreshToken, profile, done) => {
-    done(null, profile);
-}));
+// Without middleware
+app.get('/', function (req, res) {
 
-// passport.use(new AzureStrategy({
-//     clientID: process.env.MICROSOFT_CLIENT_ID,
-//     clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-//     callbackURL: '/auth/microsoft/callback',
-//     responseType: 'code',
-//     responseMode: 'query',
-//     scope: ['openid', 'profile', 'email'],
-// }, (accessToken, refreshToken, profile, done) => {
-//     done(null, profile);
-// }));
-
-// Login route
-app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
-    const user = users.find(u => u.email === email);
-    if (!user) return res.status(400).json({ success: false, message: 'User not found' });
-
-    const isValid = await verifyPassword(password, user.password);
-    if (!isValid) return res.status(400).json({ success: false, message: 'Invalid password' });
-
-    const token = jwt.sign({ email: user.email }, 'SECRET_KEY', { expiresIn: '1h' });
-    res.json({ success: true, token });
+    const fileName = 'public/index.html';
+    res.sendFile(fileName, OPTIONS, function (err) {
+        if (err) {
+            console.error('Error sending file:', err);
+        } else {
+            console.log('Sent:', fileName);
+        }
+    });
 });
 
-// Google OAuth routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-app.get('/auth/google/callback', passport.authenticate('google', {
-    successRedirect: '/dashboard',
-    failureRedirect: '/login',
-}));
+// Middleware to protect routes
+function authenticateToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(401).json({ success: false, message: 'Access Denied: No Token Provided' });
 
-// Microsoft OAuth routes
-app.get('/auth/microsoft', passport.authenticate('azuread-openidconnect'));
-app.post('/auth/microsoft/callback', passport.authenticate('azuread-openidconnect', {
-    successRedirect: '/dashboard',
-    failureRedirect: '/login',
-}));
+    const bearerToken = token.split(' ')[1];
+    jwt.verify(bearerToken, process.env.JWT_SECRET || 'SECRET_KEY', (err, user) => {
+        if (err) return res.status(403).json({ success: false, message: 'Access Denied: Invalid Token' });
+        req.user = user;
+        next();
+    });
+}
 
-// Create user
+// User registration
 app.post('/api/register', async (req, res) => {
-    const { email, password } = req.body;
-    if (users.some(u => u.email === email)) {
-        return res.status(400).json({ success: false, message: 'User already exists' });
+    console.log(JSON.stringify(req.body))
+    const { firstName, surname, email, password, passwordVerification, company } = req.body;
+
+    // Check if passwords match
+    if (password !== passwordVerification) {
+        return res.status(400).json({ success: false, message: 'Passwords do not match' });
     }
 
-    const hashedPassword = await hashPassword(password);
-    users.push({ email, password: hashedPassword });
-    res.json({ success: true, message: 'User registered successfully' });
+    try {
+
+        const hashedPassword = await hashPassword(password);
+
+        // Insert user into the database
+        db.query(
+            'INSERT INTO users (first_name, surname, email, password, company) VALUES (?, ?, ?, ?, ?)',
+            [firstName, surname, email, hashedPassword, company],
+            (err, results) => {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({ success: false, message: 'User already exists' });
+                    }
+                    console.error(err);
+                    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+                }
+                res.json({ success: true, message: 'User registered successfully', userId: results.insertId });
+            }
+        );
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+
+// User login
+app.get('/login', authenticateToken, async (req, res) => {
+    const fileName = 'public/login.html';
+    res.sendFile(fileName, options, function (err) {
+        if (err) {
+            console.error('Error sending file:', err);
+        } else {
+            console.log('Sent:', fileName);
+        }
+    });
+})
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // Retrieve user from database
+        db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ success: false, message: 'Internal Server Error' });
+            }
+
+            if (results.length === 0) {
+                return res.status(400).json({ success: false, message: 'User not found' });
+            }
+
+            const user = results[0];
+            const isValid = await verifyPassword(password, user.password);
+            if (!isValid) {
+                return res.status(400).json({ success: false, message: 'Invalid password' });
+            }
+
+            const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET || 'SECRET_KEY', { expiresIn: '1h' });
+            res.json({ success: true, token });
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+// passport.use(new GoogleStrategy({
+//     clientID: process.env.GOOGLE_CLIENT_ID,
+//     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+//     callbackURL: '/auth/google/callback',
+// }, (accessToken, refreshToken, profile, done) => {
+//     const email = profile.emails[0].value;
+
+//     // Check if user exists
+//     db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
+//         if (err) {
+//             return done(err);
+//         }
+//         if (results.length > 0) {
+//             // User exists, proceed with login
+//             return done(null, results[0]);
+//         } else {
+//             // Redirect to registration with email pre-filled
+//             return done(null, false, { message: `/register?email=${email}` });
+//         }
+//     });
+// }));
+
+// Handle Google OAuth callback
+app.get('/auth/google/callback', passport.authenticate('google', {
+    failureRedirect: '/',
+    failureMessage: true,
+}), (req, res) => {
+    // Check for custom redirect in the failure message
+    if (req.authInfo && req.authInfo.message) {
+        return res.redirect(req.authInfo.message);
+    }
+
+    // Successful login
+    res.redirect('/dashboard');
+});
+
+
+// Protected route
+app.get('/dashboard', authenticateToken, (req, res) => {
+    res.json({ success: true, message: `Welcome to your dashboard, ${req.user.email}!` });
 });
 
 // Start server
