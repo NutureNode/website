@@ -1,18 +1,20 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const mysql = require('mysql2');
 const path = require('path');
+const session = require('express-session');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const OPTIONS = {
-    root: path.join(__dirname)
+    root: path.join(__dirname, 'public')
 };
 
 // MySQL connection
@@ -26,161 +28,184 @@ const db = mysql.createPool({
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.static('public'))
+app.use(express.static('public'));
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'secret',
+    resave: false,
+    saveUninitialized: true,
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
-// Hash password (12 salt rounds for bcrypt)
-async function hashPassword(password) {
-    return await bcrypt.hash(password, 12);
-}
-
-// Verify password
-async function verifyPassword(password, hash) {
-    return await bcrypt.compare(password, hash);
-}
-
-// Without middleware
-app.get('/', function (req, res) {
-
-    const fileName = 'public/index.html';
-    res.sendFile(fileName, OPTIONS, function (err) {
-        if (err) {
-            console.error('Error sending file:', err);
-        } else {
-            console.log('Sent:', fileName);
+// Passport configuration for local strategy
+passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password'
+}, (email, password, done) => {
+    db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+        if (err) return done(err);
+        if (results.length === 0) {
+            return done(null, false, { message: 'Incorrect email.' });
         }
+
+        const user = results[0];
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
+            return done(null, false, { message: 'Incorrect password.' });
+        }
+
+        return done(null, user);
+    });
+}));
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID || "default",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "/auth/google/callback"
+}, (accessToken, refreshToken, profile, done) => {
+    // Find or create user in the database
+    db.query('SELECT * FROM users WHERE google_id = ?', [profile.id], (err, results) => {
+        if (err) return done(err);
+        if (results.length > 0) {
+            return done(null, results[0]);
+        } else {
+            const newUser = {
+                google_id: profile.id,
+                email: profile.emails[0].value,
+                first_name: profile.name.givenName,
+                last_name: profile.name.familyName
+            };
+            db.query('INSERT INTO users SET ?', newUser, (err, results) => {
+                if (err) return done(err);
+                newUser.id = results.insertId;
+                return done(null, newUser);
+            });
+        }
+    });
+}));
+
+passport.serializeUser((user, done) => {
+    done(null, user.email);
+});
+
+passport.deserializeUser((id, done) => {
+    db.query('SELECT * FROM users WHERE email = ?', [id], (err, results) => {
+        if (err) return done(err);
+        done(null, results[0]);
     });
 });
 
-// Middleware to protect routes
-function authenticateToken(req, res, next) {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(401).json({ success: false, message: 'Access Denied: No Token Provided' });
-
-    const bearerToken = token.split(' ')[1];
-    jwt.verify(bearerToken, process.env.JWT_SECRET || 'SECRET_KEY', (err, user) => {
-        if (err) return res.status(403).json({ success: false, message: 'Access Denied: Invalid Token' });
-        req.user = user;
-        next();
-    });
+// Middleware to check if user is authenticated
+function isAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.redirect('/login');
 }
 
-// User registration
-app.post('/api/register', async (req, res) => {
-    console.log(JSON.stringify(req.body))
-    const { firstName, surname, email, password, passwordVerification, company } = req.body;
-
-    // Check if passwords match
-    if (password !== passwordVerification) {
-        return res.status(400).json({ success: false, message: 'Passwords do not match' });
+// Routes
+app.get('/login', (req, res) => {
+    if (req.isAuthenticated()) {
+        return res.redirect('/dashboard');
     }
+    res.sendFile('login.html', OPTIONS);
+});
 
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/dashboard',
+    failureRedirect: '/login'
+}));
+
+app.get('/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res) => {
+        res.redirect('/dashboard');
+    }
+);
+
+app.get('/dashboard', isAuthenticated, (req, res) => {
+    res.json({ success: true, message: `Welcome to your dashboard, ${req.user.email}!` });
+});
+
+app.get('/events', async (req, res) => {
+    let result;
     try {
-
-        const hashedPassword = await hashPassword(password);
-
-        // Insert user into the database
-        db.query(
-            'INSERT INTO users (first_name, surname, email, password, company) VALUES (?, ?, ?, ?, ?)',
-            [firstName, surname, email, hashedPassword, company],
-            (err, results) => {
-                if (err) {
-                    if (err.code === 'ER_DUP_ENTRY') {
-                        return res.status(400).json({ success: false, message: 'User already exists' });
-                    }
-                    console.error(err);
-                    return res.status(500).json({ success: false, message: 'Internal Server Error' });
-                }
-                res.json({ success: true, message: 'User registered successfully', userId: results.insertId });
-            }
-        );
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Internal Server Error' });
+        result = await this.db.query(
+            `SELECT * FROM EVENTS WHERE guildId = ? ORDER BY date`,
+            ["1304780977226252340"]);
+    } catch (ex) {
+        console.log(`Error when inserting into members with ${ex}`)
     }
-});
 
-
-// User login
-app.get('/login', authenticateToken, async (req, res) => {
-    const fileName = 'public/login.html';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            console.error('Error sending file:', err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+    res.json({ success: true, data: result })
 })
-app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
+
+// Registration route
+app.get('/api/register', (req, res) => {
+    res.sendFile('registration.html', OPTIONS);
+});
+
+app.post('/api/register', async (req, res, next) => {
+    const { firstName, surname, email, password, company } = req.body;
 
     try {
-        // Retrieve user from database
-        db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Check if company exists
+        db.query('SELECT * FROM company WHERE companyname = ?', [company], (err, results) => {
             if (err) {
                 console.error(err);
                 return res.status(500).json({ success: false, message: 'Internal Server Error' });
             }
 
-            if (results.length === 0) {
-                return res.status(400).json({ success: false, message: 'User not found' });
+            let companyId;
+            if (results.length > 0) {
+                companyId = results[0].companyid;
+            } else {
+                // Insert new company
+                db.query('INSERT INTO company (companyname) VALUES (?)', [company], (err, results) => {
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+                    }
+                    companyId = results.insertId;
+                });
             }
 
-            const user = results[0];
-            const isValid = await verifyPassword(password, user.password);
-            if (!isValid) {
-                return res.status(400).json({ success: false, message: 'Invalid password' });
-            }
+            // Insert new user
+            const newUser = {
+                first_name: firstName,
+                last_name: surname,
+                email: email,
+                password: hashedPassword,
+                companyid: companyId,
+                registration_date: new Date()
+            };
 
-            const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET || 'SECRET_KEY', { expiresIn: '1h' });
-            res.json({ success: true, token });
+            db.query('INSERT INTO users SET ?', newUser, (err, results) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+                }
+
+                // Authenticate the user after registration
+                req.login(newUser, (err) => {
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+                    }
+                    res.redirect('/dashboard');
+                });
+            });
         });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
-});
-
-// passport.use(new GoogleStrategy({
-//     clientID: process.env.GOOGLE_CLIENT_ID,
-//     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-//     callbackURL: '/auth/google/callback',
-// }, (accessToken, refreshToken, profile, done) => {
-//     const email = profile.emails[0].value;
-
-//     // Check if user exists
-//     db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
-//         if (err) {
-//             return done(err);
-//         }
-//         if (results.length > 0) {
-//             // User exists, proceed with login
-//             return done(null, results[0]);
-//         } else {
-//             // Redirect to registration with email pre-filled
-//             return done(null, false, { message: `/register?email=${email}` });
-//         }
-//     });
-// }));
-
-// Handle Google OAuth callback
-app.get('/auth/google/callback', passport.authenticate('google', {
-    failureRedirect: '/',
-    failureMessage: true,
-}), (req, res) => {
-    // Check for custom redirect in the failure message
-    if (req.authInfo && req.authInfo.message) {
-        return res.redirect(req.authInfo.message);
-    }
-
-    // Successful login
-    res.redirect('/dashboard');
-});
-
-
-// Protected route
-app.get('/dashboard', authenticateToken, (req, res) => {
-    res.json({ success: true, message: `Welcome to your dashboard, ${req.user.email}!` });
 });
 
 // Start server
