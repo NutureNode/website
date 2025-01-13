@@ -111,7 +111,7 @@ app.get('/login', (req, res) => {
     res.sendFile('login.html', OPTIONS);
 });
 
-app.post('/login', passport.authenticate('local', {
+app.post('/api/login', passport.authenticate('local', {
     successRedirect: '/dashboard',
     failureRedirect: '/login'
 }));
