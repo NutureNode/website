@@ -14,7 +14,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const OPTIONS = {
-    root: path.join(__dirname, 'public')
+    root: path.join(__dirname, 'dashboard/dist/index.html')
 };
 
 // MySQL connection
@@ -28,7 +28,7 @@ const db = mysql.createPool({
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.static('dashboard/dist/'));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
