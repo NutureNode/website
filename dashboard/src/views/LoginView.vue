@@ -31,7 +31,7 @@ export default {
     },
     methods: {
         async login() {
-            const response = await fetch('http://localhost:3000/api/login', {
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -41,8 +41,7 @@ export default {
 
             const result = await response.json();
             if (result.success) {
-                alert('Login successful!');
-                window.location.href = '/dashboard';
+                this.$router.replace('/dashboard')
             } else {
                 alert('Login failed: ' + result.message);
             }
