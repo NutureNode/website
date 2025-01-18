@@ -11,7 +11,7 @@
             <button class="cta-button">Join Early Access</button>
             <div class="features">
                 <div class="feature" v-for="(feature, index) in features" :key="index">
-                    <img :src="feature.image" :alt="feature.alt">
+                    <img :src="require(`../assets/${feature.image}`)" :alt="feature.alt">
                     <h3>{{ feature.title }}</h3>
                     <p>{{ feature.description }}</p>
                 </div>
@@ -30,19 +30,19 @@ export default {
             mode: 'light-mode',
             features: [
                 {
-                    image: '../assets/manage-community.jpeg',
+                    image: 'manage-community.jpeg',
                     alt: 'Feature 1',
                     title: 'Manage Your Community',
                     description: 'Simple and intuitive tools to help you manage your community efficiently.'
                 },
                 {
-                    image: '../assets/engagement.jpeg',
+                    image: 'engagement.jpeg',
                     alt: 'Feature 2',
                     title: 'Engage Effectively',
                     description: 'Keep your members engaged with modern communication tools.'
                 },
                 {
-                    image: '../assets/analytics.jpeg',
+                    image: 'analytics.jpeg',
                     alt: 'Feature 3',
                     title: 'Grow Seamlessly',
                     description: 'Insights and analytics to help you grow your community.'
