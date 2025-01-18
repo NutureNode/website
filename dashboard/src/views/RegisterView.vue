@@ -1,7 +1,7 @@
 <template>
     <div class="registration-container">
         <h1>Register</h1>
-        <form id="registrationForm" @submit.prevent="register">
+        <form id="registrationForm" ref="form" @submit.prevent="register">
             <label for="firstName">First Name:</label>
             <input type="text" id="firstName" v-model="form.firstName" required>
 
@@ -26,6 +26,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
     data() {
         return {
@@ -43,6 +45,16 @@ export default {
     methods: {
         register() {
             // Handle form submission
+            axios.post('/api/register', this.form)
+                .then(response => {
+                    console.log('Registration successful', response.data);
+                    this.$router.replace('/dashboard')
+                    // Handle successful registration (e.g., redirect to login page)
+                })
+                .catch(error => {
+                    console.error('Registration failed', error);
+                    // Handle registration error (e.g., display error message)
+                });
             console.log('Form submitted', this.form);
         },
         populateGoogleFields() {

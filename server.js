@@ -150,6 +150,7 @@ app.get('/api/register', (req, res) => {
 });
 
 app.post('/api/register', async (req, res, next) => {
+    console.log("Registering the user with the following data: ", req.body);
     const { firstName, surname, email, password, company } = req.body;
 
     try {
