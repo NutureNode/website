@@ -1,12 +1,17 @@
 <template>
     <header class="page-heading">
-        <h1>{{ title }}</h1>
+        <h1>{{ user }}</h1>
     </header>
 </template>
 
 <script>
+import { mapGetters } from "vuex";
+
 export default {
     name: 'TopHeading',
+    computed: {
+        ...mapGetters(["user"]),
+    },
     props: {
         title: {
             type: String,

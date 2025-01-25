@@ -1,8 +1,6 @@
 <template>
     <div class="main-body">
-        <header>
-            <h1>Main Dashboard</h1>
-        </header>
+        <TopHeading />
         <section>
             <!-- Add your main components here -->
             <DiscordGraph />
@@ -13,13 +11,14 @@
 
 <script>
 import DiscordGraph from '../components/DiscordGraph.vue';
+import TopHeading from '../components/TopHeading.vue';
 
 
 export default {
     name: 'DashboardView',
     components: {
         DiscordGraph,
-
+        TopHeading,
     },
     data() {
         return {

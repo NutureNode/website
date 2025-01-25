@@ -26,7 +26,8 @@ export default {
     data() {
         return {
             email: '',
-            password: ''
+            password: '',
+            user: this.$store.state.user
         };
     },
     methods: {
@@ -41,6 +42,7 @@ export default {
 
             const result = await response.json();
             if (result.success) {
+                this.$store.commit("setUser", this.email)
                 this.$router.replace('/dashboard')
             } else {
                 alert('Login failed: ' + result.message);
