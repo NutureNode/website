@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createStore } from 'vuex'
+import { VuexPersistence } from 'vuex-persist'
 
 import App from './App.vue'
 
@@ -16,6 +17,10 @@ const routes = [
     { path: '/dashboard', component: DashboardView },
     { path: '/login', component: LoginView },
 ]
+
+const vuexSessionStorage = new VuexPersistence({
+    storage: window.sessionStorage
+})
 
 const store = createStore({
     state() {
@@ -34,6 +39,7 @@ const store = createStore({
         user: (state) => state.user,
         loggedIn: (state) => state.loggedIn,
     },
+    plugins: [vuexSessionStorage.plugin]
 })
 
 const router = createRouter({
@@ -42,7 +48,7 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-    console.log(store.getters.user)
+    console.log(store.state.user)
     if (to.path === '/dashboard' && !store.getters.loggedIn) {
         next('/login')
     } else if (to.path === '/login' && store.getters.loggedIn) {
