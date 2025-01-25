@@ -1,6 +1,7 @@
 <template>
     <div class="main-body">
         <TopHeading />
+        <LeftNavBar />
         <section>
             <!-- Add your main components here -->
             <DiscordGraph />
@@ -10,6 +11,7 @@
 </template>
 
 <script>
+import LeftNavBar from '../components/LeftNavBar.vue';
 import DiscordGraph from '../components/DiscordGraph.vue';
 import TopHeading from '../components/TopHeading.vue';
 
@@ -17,6 +19,7 @@ import TopHeading from '../components/TopHeading.vue';
 export default {
     name: 'DashboardView',
     components: {
+        LeftNavBar,
         DiscordGraph,
         TopHeading,
     },
